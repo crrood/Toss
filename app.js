@@ -1,3 +1,5 @@
+
+
 // HTML element to draw on, and drawing helper thing
 // (still not entirely sure what exactly a context is and why you need it)
 var canvas, ctx;
@@ -104,3 +106,4 @@ function checkKeypress(event) {
 function output(message) {
 	document.getElementById("console").innerHTML = document.getElementById("console").innerHTML + "<br>" + message;
 }
+
