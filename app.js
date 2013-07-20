@@ -12,7 +12,7 @@ var shotPower = 100;
 var MAX_POWER = 250;
 
 // divisor is steps required to get from top to bottom
-var aimYSensitivity = (Math.PI / 2) / 20;
+var aimYSensitivity = (Math.PI / 2) / 40;
 
 // amount to increment power by per keypress
 var aimXSensitivity = 4;
@@ -99,6 +99,21 @@ function checkKeypress(event) {
 		break;
 	}
 	
+}
+
+
+////////////////////////////////////////////////////////
+////////////// Drawing helper methods //////////////////
+////////////////////////////////////////////////////////
+
+// Draw a circle at specified coordinates
+// Currently a filled in black circle
+function drawCircle(ctx, x, y, r) {
+	ctx.beginPath();
+	ctx.fillStyle = "#000000";
+	ctx.arc(x, y, r, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.closePath();
 }
 
 // output text to bottom of panel
