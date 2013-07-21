@@ -12,17 +12,29 @@ var canvas, ctx;
 var aimTheta = Math.PI / 4;
 
 // start power of shot
-var shotPower = 100;
+var shotPower = 150;
 var MAX_POWER = 250;
 
-// divisor is steps required to get from top to bottom
+// gravitational force
+var gravity = 50;
+
+// divisor is number of steps from top to bottom
 var aimYSensitivity = (Math.PI / 2) / 40;
 
-// amount to increment power by per keypress
+// amount to increment power per keypress
 var aimXSensitivity = 6;
 
 // array to store active balls
 var activeBalls = new Array();
+
+// variable used to set / clear timeout for rendering
+var renderTimer;
+
+// delay between time periods
+var renderInterval = 400;
+
+// is time advancing?
+var timeActive = false;
 
 
 ////////////////////////////////////////////////////////
@@ -30,15 +42,32 @@ var activeBalls = new Array();
 ////////////////////////////////////////////////////////
 
 // class to store data on an active ball
-function Ball(x, y, r) {
+function Ball(x, y, r, dx, dy) {
 	
 	this.x = x;
 	this.y = y;
 	this.r = r;
 	
-	this.updateLocation = function(x, y) {
+	this.dx = dx;
+	this.dy = dy;
+	
+	this.setLocation = function(x, y) {
 		this.x = x;
 		this.y = y;
+	};
+	
+	this.setVelocity = function(dx, dy) {
+		this.dx = dx;
+		this.dy = dy;
+	};
+	
+	this.updateLocation = function() {
+		this.x += this.dx;
+		this.y += this.dy;
+	};
+	
+	this.applyGravity = function() {
+		this.dy += gravity;
 	};
 		
 	this.draw = function() {
@@ -68,7 +97,7 @@ function initialize() {
 function toss() {
 	
 	// create a new ball
-	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12);
+	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12, Math.cos(aimTheta) * shotPower, - Math.sin(aimTheta) * shotPower);
 	
 	render();
 }
@@ -110,6 +139,11 @@ function checkKeypress(event) {
 	
 }
 
+
+////////////////////////////////////////////////////////
+//////////////// Rendering Methods /////////////////////
+////////////////////////////////////////////////////////
+
 // draw everything onto the canvas
 function render() {
 	
@@ -120,9 +154,41 @@ function render() {
 	drawAimLine();
 	
 	// active balls
-	for (i in activeBalls) {
+	for (var i in activeBalls) {
 		activeBalls[i].draw();
 	}
+	
+}
+
+// move everything as it should
+function advanceTime() {
+	
+	for (var i in activeBalls) {
+		activeBalls[i].applyGravity();
+		activeBalls[i].updateLocation();
+	}
+	
+	render();
+	
+}
+
+// activate the render timer
+function startTime(event) {
+	
+	if (!timeActive) {
+		renderTimer = setInterval(function() { advanceTime(); }, renderInterval);
+	}
+	timeActive = true;
+	
+}
+
+// pause the render timer
+function stopTime(event) {
+	
+	if (timeActive) {
+		clearInterval(renderTimer);
+	}
+	timeActive = false;
 	
 }
 
