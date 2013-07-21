@@ -15,6 +15,9 @@ var aimTheta = Math.PI / 4;
 var shotPower = 150;
 var MAX_POWER = 250;
 
+// redraw aimLine?
+var aimChanged = true;
+
 // gravitational force
 var gravity = 50;
 
@@ -151,7 +154,10 @@ function render() {
 	// first --> last :: bottom --> top
 	
 	// aim line
-	drawAimLine();
+	if (aimChanged) {
+		drawAimLine();
+		aimChanged = false;
+	}
 	
 	// active balls
 	for (var i in activeBalls) {
@@ -229,6 +235,9 @@ function moveAimLine(newAimTheta, newShotPower) {
 	// set new theta and showPower values
 	aimTheta = newAimTheta;
 	shotPower = newShotPower;
+	
+	// redraw the line
+	aimChanged = true;
 	
 	render();
 	
