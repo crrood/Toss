@@ -1,5 +1,9 @@
 
 
+////////////////////////////////////////////////////////
+/////////////////// Global Vars ////////////////////////
+////////////////////////////////////////////////////////
+
 // HTML element to draw on, and drawing helper thing
 // (still not entirely sure what exactly a context is and why you need it)
 var canvas, ctx;
@@ -15,57 +19,60 @@ var MAX_POWER = 250;
 var aimYSensitivity = (Math.PI / 2) / 40;
 
 // amount to increment power by per keypress
-var aimXSensitivity = 4;
+var aimXSensitivity = 6;
+
+// array to store active balls
+var activeBalls = new Array();
+
+
+////////////////////////////////////////////////////////
+///////////////////// Classes //////////////////////////
+////////////////////////////////////////////////////////
+
+// class to store data on an active ball
+function Ball(x, y, r) {
+	
+	this.x = x;
+	this.y = y;
+	this.r = r;
+	
+	this.updateLocation = function(x, y) {
+		this.x = x;
+		this.y = y;
+	};
+		
+	this.draw = function() {
+		drawCircle(this.x, this.y, this.r);
+	};
+	
+}
+
+
+////////////////////////////////////////////////////////
+///////////// Main Application Methods /////////////////
+////////////////////////////////////////////////////////
 
 // set everything up
 // called on loading
 function initialize() {
 	
-	// start initialize method
-	output("init method begin");
-	
 	// initialize canvas and its context
 	canvas = document.getElementById("canvas");
 	ctx = canvas.getContext("2d");
-	output("canvas initialized");
 	
 	// render aiming line
 	drawAimLine(aimTheta, shotPower);
 	
-	// initialize method complete
-	output("init method end");
-	
 }
 
-// render the line to represent where you're aiming
-// x = cos(aimTheta) * shotPower, y = sin(aimTheta) * shotPower
-function drawAimLine(newAimTheta, newShotPower) {
+// shoot a ball
+function toss() {
 	
-	// switch globalCompositeOperation to overwrite previous image
-	ctx.globalCompositeOperation = "copy";
+	// create a new ball
+	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12);
 	
-	// "erase" the old line by drawing a white one over it
-	ctx.beginPath();
-	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(aimTheta) * shotPower, canvas.height - Math.sin(aimTheta) * shotPower);
-	
-	ctx.strokeStyle = "#000000";
-	ctx.stroke();
-	ctx.closePath();
-	
-	// draw a new line
-	ctx.beginPath();
-	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(newAimTheta) * newShotPower, canvas.height - Math.sin(newAimTheta) * newShotPower);
-	
-	ctx.strokeStyle = "#FF4400";
-	ctx.stroke();
-	ctx.closePath();
-	
-	// set new theta and showPower values
-	aimTheta = newAimTheta;
-	shotPower = newShotPower;
-	
+	// render the ball on the canvas
+	activeBalls[activeBalls.length - 1].draw();
 }
 
 // capture keyboard input
@@ -73,6 +80,10 @@ function checkKeypress(event) {
 	
 	// see which key was pressed
 	switch (event.keyCode) {
+	case 0:
+		// space
+		toss();
+		break;
 	case 37:
 		// left
 		if (shotPower - aimXSensitivity > 0) {
@@ -101,24 +112,74 @@ function checkKeypress(event) {
 	
 }
 
+// draw everything onto the canvas
+function render() {
+	
+	// the order in which these are called determines the layering
+	// first --> last :: bottom --> top
+	drawAimLine(aimTheta, newShotPower);
+	for (i in activeBalls) {
+		activeBalls[i].draw();
+	}
+	
+}
+
 
 ////////////////////////////////////////////////////////
-////////////// Drawing helper methods //////////////////
+////////////// Drawing Helper Methods //////////////////
 ////////////////////////////////////////////////////////
+
+// render the line to represent where you're aiming
+// x = cos(aimTheta) * shotPower, y = sin(aimTheta) * shotPower
+function drawAimLine(newAimTheta, newShotPower) {
+	
+	// switch globalCompositeOperation to overwrite previous image
+	//ctx.globalCompositeOperation = "copy";
+	
+	// "erase" the old line by drawing a white one over it
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	ctx.lineTo(Math.cos(aimTheta) * shotPower, canvas.height - Math.sin(aimTheta) * shotPower);
+	
+	ctx.strokeStyle = "#FFFFFF";
+	ctx.lineWidth = 2;
+	ctx.stroke();
+	ctx.closePath();
+	
+	// draw a new line
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	ctx.lineTo(Math.cos(newAimTheta) * newShotPower, canvas.height - Math.sin(newAimTheta) * newShotPower);
+	
+	ctx.strokeStyle = "#FF4400";
+	ctx.lineWidth = 1;
+	ctx.stroke();
+	ctx.closePath();
+	
+	// set new theta and showPower values
+	aimTheta = newAimTheta;
+	shotPower = newShotPower;
+	
+}
 
 // Draw a circle at specified coordinates
 // Currently a filled in black circle
-function drawCircle(ctx, x, y, r) {
+function drawCircle(x, y, r) {
+	
 	ctx.beginPath();
 	ctx.fillStyle = "#000000";
 	ctx.arc(x, y, r, 0, Math.PI * 2);
+	
 	ctx.fill();
 	ctx.closePath();
+	
 }
 
 // output text to bottom of panel
 // for debugging
 function output(message) {
+	
 	document.getElementById("console").innerHTML = document.getElementById("console").innerHTML + "<br>" + message;
+	
 }
 
