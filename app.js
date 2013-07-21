@@ -60,8 +60,7 @@ function initialize() {
 	canvas = document.getElementById("canvas");
 	ctx = canvas.getContext("2d");
 	
-	// render aiming line
-	drawAimLine(aimTheta, shotPower);
+	render();
 	
 }
 
@@ -71,8 +70,7 @@ function toss() {
 	// create a new ball
 	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12);
 	
-	// render the ball on the canvas
-	activeBalls[activeBalls.length - 1].draw();
+	render();
 }
 
 // capture keyboard input
@@ -87,25 +85,25 @@ function checkKeypress(event) {
 	case 37:
 		// left
 		if (shotPower - aimXSensitivity > 0) {
-			drawAimLine(aimTheta, shotPower - aimXSensitivity);
+			moveAimLine(aimTheta, shotPower - aimXSensitivity);
 		}
 		break;
 	case 38:
 		// up
 		if (aimTheta + aimYSensitivity < Math.PI / 2) {
-			drawAimLine(aimTheta + aimYSensitivity, shotPower);
+			moveAimLine(aimTheta + aimYSensitivity, shotPower);
 		}
 		break;
 	case 39:
 		// right
 		if (shotPower + aimXSensitivity < MAX_POWER) {
-			drawAimLine(aimTheta, shotPower + aimXSensitivity);
+			moveAimLine(aimTheta, shotPower + aimXSensitivity);
 		}
 		break;
 	case 40:
 		// down
 		if (aimTheta - aimYSensitivity > 0) {
-			drawAimLine(aimTheta - aimYSensitivity, shotPower);
+			moveAimLine(aimTheta - aimYSensitivity, shotPower);
 		}
 		break;
 	}
@@ -117,7 +115,11 @@ function render() {
 	
 	// the order in which these are called determines the layering
 	// first --> last :: bottom --> top
-	drawAimLine(aimTheta, newShotPower);
+	
+	// aim line
+	drawAimLine();
+	
+	// active balls
 	for (i in activeBalls) {
 		activeBalls[i].draw();
 	}
@@ -131,10 +133,22 @@ function render() {
 
 // render the line to represent where you're aiming
 // x = cos(aimTheta) * shotPower, y = sin(aimTheta) * shotPower
-function drawAimLine(newAimTheta, newShotPower) {
+function drawAimLine() {
 	
-	// switch globalCompositeOperation to overwrite previous image
-	//ctx.globalCompositeOperation = "copy";
+	// draw a new line
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	ctx.lineTo(Math.cos(aimTheta) * shotPower, canvas.height - Math.sin(aimTheta) * shotPower);
+	
+	ctx.strokeStyle = "#FF4400";
+	ctx.lineWidth = 1;
+	ctx.stroke();
+	ctx.closePath();
+	
+}
+
+// overwrite the old aim line and update angle and power values
+function moveAimLine(newAimTheta, newShotPower) {
 	
 	// "erase" the old line by drawing a white one over it
 	ctx.beginPath();
@@ -146,24 +160,16 @@ function drawAimLine(newAimTheta, newShotPower) {
 	ctx.stroke();
 	ctx.closePath();
 	
-	// draw a new line
-	ctx.beginPath();
-	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(newAimTheta) * newShotPower, canvas.height - Math.sin(newAimTheta) * newShotPower);
-	
-	ctx.strokeStyle = "#FF4400";
-	ctx.lineWidth = 1;
-	ctx.stroke();
-	ctx.closePath();
-	
 	// set new theta and showPower values
 	aimTheta = newAimTheta;
 	shotPower = newShotPower;
 	
+	render();
+	
 }
 
-// Draw a circle at specified coordinates
-// Currently a filled in black circle
+// draw a circle at specified coordinates
+// currently a filled in black circle
 function drawCircle(x, y, r) {
 	
 	ctx.beginPath();
