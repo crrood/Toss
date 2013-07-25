@@ -16,7 +16,7 @@ var shotPower = 150;
 var MAX_POWER = 250;
 
 // redraw aimLine?
-var aimChanged = true;
+var redrawAimLine = true;
 
 // gravitational force
 var gravity = 50;
@@ -47,34 +47,56 @@ var timeActive = false;
 // class to store data on an active ball
 function Ball(x, y, r, dx, dy) {
 	
+	// location
 	this.x = x;
 	this.y = y;
+	
+	// size
 	this.r = r;
 	
+	// velocity
 	this.dx = dx;
 	this.dy = dy;
 	
+	// set location values
 	this.setLocation = function(x, y) {
 		this.x = x;
 		this.y = y;
 	};
 	
+	// set velocity values
 	this.setVelocity = function(dx, dy) {
 		this.dx = dx;
 		this.dy = dy;
 	};
 	
-	this.updateLocation = function() {
+	// apply velocity to location
+	this.updateLocation = function(redraw) {
+		// "erase" the curent ball by overwriting with a white one
+		if (redraw && this.isInbounds()) {
+			drawCircle(this.x, this.y, this.r + 2, "#FFFFFF");
+		}
+		
 		this.x += this.dx;
 		this.y += this.dy;
 	};
 	
+	// apply acceleration due to gravity
 	this.applyGravity = function() {
 		this.dy += gravity;
 	};
-		
+	
+	// render the ball at its current coordinates
 	this.draw = function() {
-		drawCircle(this.x, this.y, this.r);
+		if (this.isInbounds()) {
+			drawCircle(this.x, this.y, this.r, "#000000");
+		}
+	};
+	
+	// is the ball onscreen?
+	this.isInbounds = function() {
+		return (this.x + this.r > 0 && this.x - this.r < canvas.width && 
+			this.y + this.r > 0 && this.y - this.r < canvas.height);
 	};
 	
 }
@@ -110,7 +132,7 @@ function checkKeypress(event) {
 	
 	// see which key was pressed
 	switch (event.keyCode) {
-	case 0:
+	case 32:
 		// space
 		toss();
 		break;
@@ -138,6 +160,14 @@ function checkKeypress(event) {
 			moveAimLine(aimTheta - aimYSensitivity, shotPower);
 		}
 		break;
+	case 71:
+		// g
+		startTime();
+		break;
+	case 83:
+		// s
+		stopTime();
+		break;
 	}
 	
 }
@@ -154,9 +184,9 @@ function render() {
 	// first --> last :: bottom --> top
 	
 	// aim line
-	if (aimChanged) {
+	if (redrawAimLine) {
 		drawAimLine();
-		aimChanged = false;
+		redrawAimLine = false;
 	}
 	
 	// active balls
@@ -171,7 +201,7 @@ function advanceTime() {
 	
 	for (var i in activeBalls) {
 		activeBalls[i].applyGravity();
-		activeBalls[i].updateLocation();
+		activeBalls[i].updateLocation(true);
 	}
 	
 	render();
@@ -223,12 +253,13 @@ function drawAimLine() {
 function moveAimLine(newAimTheta, newShotPower) {
 	
 	// "erase" the old line by drawing a white one over it
+	// slightly larger to prevent rounding artifacts
 	ctx.beginPath();
 	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(aimTheta) * shotPower, canvas.height - Math.sin(aimTheta) * shotPower);
+	ctx.lineTo(Math.cos(aimTheta) * (shotPower + 2), canvas.height - Math.sin(aimTheta) * (shotPower + 2));
 	
 	ctx.strokeStyle = "#FFFFFF";
-	ctx.lineWidth = 2;
+	ctx.lineWidth = 3;
 	ctx.stroke();
 	ctx.closePath();
 	
@@ -237,7 +268,7 @@ function moveAimLine(newAimTheta, newShotPower) {
 	shotPower = newShotPower;
 	
 	// redraw the line
-	aimChanged = true;
+	redrawAimLine = true;
 	
 	render();
 	
@@ -245,14 +276,17 @@ function moveAimLine(newAimTheta, newShotPower) {
 
 // draw a circle at specified coordinates
 // currently a filled in black circle
-function drawCircle(x, y, r) {
+function drawCircle(x, y, r, color) {
 	
 	ctx.beginPath();
-	ctx.fillStyle = "#000000";
+	ctx.fillStyle = color;
 	ctx.arc(x, y, r, 0, Math.PI * 2);
 	
 	ctx.fill();
 	ctx.closePath();
+	
+	// re-render the aimLine in case the circle overlapped it
+	redrawAimLine = true;
 	
 }
 
