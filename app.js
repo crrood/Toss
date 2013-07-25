@@ -11,15 +11,17 @@ var canvas, ctx;
 // starting angle of shot
 var aimTheta = Math.PI / 4;
 
-// start power of shot
-var shotPower = 150;
+// starting velocity of shot, in px / s
+var shotVelocity = 150;
+
+// maximum shot velocity
 var MAX_POWER = 250;
 
 // redraw aimLine?
 var redrawAimLine = true;
 
-// gravitational force
-var gravity = 50;
+// gravitational force, in px / s ^ 2 
+var gravity = 7;
 
 // divisor is number of steps from top to bottom
 var aimYSensitivity = (Math.PI / 2) / 40;
@@ -34,7 +36,7 @@ var activeBalls = new Array();
 var renderTimer;
 
 // delay between time periods
-var renderInterval = 400;
+var renderInterval = 50;
 
 // is time advancing?
 var timeActive = false;
@@ -57,6 +59,9 @@ function Ball(x, y, r, dx, dy) {
 	// velocity
 	this.dx = dx;
 	this.dy = dy;
+	
+	output("dx: " + dx);
+	output("dy: " + dy);
 	
 	// set location values
 	this.setLocation = function(x, y) {
@@ -83,7 +88,8 @@ function Ball(x, y, r, dx, dy) {
 	
 	// apply acceleration due to gravity
 	this.applyGravity = function() {
-		this.dy += gravity;
+		
+		this.dy += gravity * (renderInterval / 1000);
 	};
 	
 	// render the ball at its current coordinates
@@ -114,6 +120,9 @@ function initialize() {
 	canvas = document.getElementById("canvas");
 	ctx = canvas.getContext("2d");
 	
+	// capture input
+	document.getElementById("body").addEventListener("keydown", checkKeypress);
+	
 	render();
 	
 }
@@ -122,13 +131,23 @@ function initialize() {
 function toss() {
 	
 	// create a new ball
-	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12, Math.cos(aimTheta) * shotPower, - Math.sin(aimTheta) * shotPower);
+	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12, 
+		// dx = cos(theta) * (velocity * (renders per second))), dy use sin
+		Math.cos(aimTheta) * (shotVelocity * (renderInterval / 1000)), - Math.sin(aimTheta) * (shotVelocity * (renderInterval / 1000)));
 	
 	render();
 }
 
 // capture keyboard input
 function checkKeypress(event) {
+	
+	// special case to reload page
+	if (event.ctrlKey && event.keyCode == 82) {
+		return;
+	}
+	
+	// prevent keypress from moving the screen around
+	event.preventDefault();
 	
 	// see which key was pressed
 	switch (event.keyCode) {
@@ -138,26 +157,26 @@ function checkKeypress(event) {
 		break;
 	case 37:
 		// left
-		if (shotPower - aimXSensitivity > 0) {
-			moveAimLine(aimTheta, shotPower - aimXSensitivity);
+		if (shotVelocity - aimXSensitivity > 0) {
+			moveAimLine(aimTheta, shotVelocity - aimXSensitivity);
 		}
 		break;
 	case 38:
 		// up
 		if (aimTheta + aimYSensitivity < Math.PI / 2) {
-			moveAimLine(aimTheta + aimYSensitivity, shotPower);
+			moveAimLine(aimTheta + aimYSensitivity, shotVelocity);
 		}
 		break;
 	case 39:
 		// right
-		if (shotPower + aimXSensitivity < MAX_POWER) {
-			moveAimLine(aimTheta, shotPower + aimXSensitivity);
+		if (shotVelocity + aimXSensitivity < MAX_POWER) {
+			moveAimLine(aimTheta, shotVelocity + aimXSensitivity);
 		}
 		break;
 	case 40:
 		// down
 		if (aimTheta - aimYSensitivity > 0) {
-			moveAimLine(aimTheta - aimYSensitivity, shotPower);
+			moveAimLine(aimTheta - aimYSensitivity, shotVelocity);
 		}
 		break;
 	case 71:
@@ -234,13 +253,13 @@ function stopTime(event) {
 ////////////////////////////////////////////////////////
 
 // render the line to represent where you're aiming
-// x = cos(aimTheta) * shotPower, y = sin(aimTheta) * shotPower
+// x = cos(aimTheta) * shotVelocity, y = sin(aimTheta) * shotVelocity
 function drawAimLine() {
 	
 	// draw a new line
 	ctx.beginPath();
 	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(aimTheta) * shotPower, canvas.height - Math.sin(aimTheta) * shotPower);
+	ctx.lineTo(Math.cos(aimTheta) * shotVelocity, canvas.height - Math.sin(aimTheta) * shotVelocity);
 	
 	ctx.strokeStyle = "#FF4400";
 	ctx.lineWidth = 1;
@@ -250,13 +269,13 @@ function drawAimLine() {
 }
 
 // overwrite the old aim line and update angle and power values
-function moveAimLine(newAimTheta, newShotPower) {
+function moveAimLine(newAimTheta, newshotVelocity) {
 	
 	// "erase" the old line by drawing a white one over it
 	// slightly larger to prevent rounding artifacts
 	ctx.beginPath();
 	ctx.moveTo(0, canvas.height);
-	ctx.lineTo(Math.cos(aimTheta) * (shotPower + 2), canvas.height - Math.sin(aimTheta) * (shotPower + 2));
+	ctx.lineTo(Math.cos(aimTheta) * (shotVelocity + 2), canvas.height - Math.sin(aimTheta) * (shotVelocity + 2));
 	
 	ctx.strokeStyle = "#FFFFFF";
 	ctx.lineWidth = 3;
@@ -265,7 +284,7 @@ function moveAimLine(newAimTheta, newShotPower) {
 	
 	// set new theta and showPower values
 	aimTheta = newAimTheta;
-	shotPower = newShotPower;
+	shotVelocity = newshotVelocity;
 	
 	// redraw the line
 	redrawAimLine = true;
