@@ -14,6 +14,9 @@ var aimTheta = Math.PI / 4;
 // starting velocity of shot, in px / s
 var shotVelocity = 150;
 
+// multiply base velocity by this to speed everything up
+var VELOCITY_MODIFIER = 1.7;
+
 // maximum shot velocity
 var MAX_POWER = 250;
 
@@ -21,7 +24,7 @@ var MAX_POWER = 250;
 var redrawAimLine = true;
 
 // gravitational force, in px / s ^ 2 
-var gravity = 7;
+var gravity = 170;
 
 // divisor is number of steps from top to bottom
 var aimYSensitivity = (Math.PI / 2) / 40;
@@ -32,14 +35,19 @@ var aimXSensitivity = 6;
 // array to store active balls
 var activeBalls = new Array();
 
-// variable used to set / clear timeout for rendering
-var renderTimer;
-
-// delay between time periods
-var renderInterval = 50;
+// size of balls
+var BALL_RADIUS = 12;
 
 // is time advancing?
 var timeActive = false;
+
+// variable used to set / clear timeout for rendering
+var renderTimer;
+
+// delay between redraws / evaluations, in ms
+// this is adjusted for the keep speed constant per second
+// = 1000 / fps
+var renderInterval = 15;
 
 
 ////////////////////////////////////////////////////////
@@ -57,11 +65,8 @@ function Ball(x, y, r, dx, dy) {
 	this.r = r;
 	
 	// velocity
-	this.dx = dx;
-	this.dy = dy;
-	
-	output("dx: " + dx);
-	output("dy: " + dy);
+	this.dx = dx * VELOCITY_MODIFIER;
+	this.dy = dy * VELOCITY_MODIFIER;
 	
 	// set location values
 	this.setLocation = function(x, y) {
@@ -78,31 +83,34 @@ function Ball(x, y, r, dx, dy) {
 	// apply velocity to location
 	this.updateLocation = function(redraw) {
 		// "erase" the curent ball by overwriting with a white one
-		if (redraw && this.isInbounds()) {
+		if (redraw) {
 			drawCircle(this.x, this.y, this.r + 2, "#FFFFFF");
 		}
 		
-		this.x += this.dx;
-		this.y += this.dy;
+		this.x += this.dx * (renderInterval / 1000);
+		this.y += this.dy * (renderInterval / 1000);
+		
+		this.checkBounce();
 	};
 	
 	// apply acceleration due to gravity
 	this.applyGravity = function() {
-		
 		this.dy += gravity * (renderInterval / 1000);
 	};
 	
 	// render the ball at its current coordinates
 	this.draw = function() {
-		if (this.isInbounds()) {
-			drawCircle(this.x, this.y, this.r, "#000000");
-		}
+		drawCircle(this.x, this.y, this.r, "#000000");
 	};
 	
-	// is the ball onscreen?
-	this.isInbounds = function() {
-		return (this.x + this.r > 0 && this.x - this.r < canvas.width && 
-			this.y + this.r > 0 && this.y - this.r < canvas.height);
+	// reverse direction at borders of canvas
+	this.checkBounce = function() {
+		if (this.x - this.r < 0 || this.x + this.r > canvas.width) {
+			this.dx = -this.dx;
+		}
+		else if (this.y - this.r < 0 || this.y + this.r > canvas.height) {
+			this.dy = -this.dy;
+		}
 	};
 	
 }
@@ -131,9 +139,9 @@ function initialize() {
 function toss() {
 	
 	// create a new ball
-	activeBalls[activeBalls.length] = new Ball(0, canvas.height, 12, 
-		// dx = cos(theta) * (velocity * (renders per second))), dy use sin
-		Math.cos(aimTheta) * (shotVelocity * (renderInterval / 1000)), - Math.sin(aimTheta) * (shotVelocity * (renderInterval / 1000)));
+	activeBalls[activeBalls.length] = new Ball(BALL_RADIUS, canvas.height - BALL_RADIUS, BALL_RADIUS, 
+		// dx = cos(theta) * velocity, dy = sin(theta) * velocity
+		Math.cos(aimTheta) * shotVelocity, - Math.sin(aimTheta) * shotVelocity);
 	
 	render();
 }
