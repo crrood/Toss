@@ -55,7 +55,7 @@ var renderInterval = 15;
 ////////////////////////////////////////////////////////
 
 // class to store data on an active ball
-function Ball(x, y, r, dx, dy) {
+function Ball(x, y, r, dx, dy, index) {
 	
 	// location
 	this.x = x;
@@ -67,6 +67,9 @@ function Ball(x, y, r, dx, dy) {
 	// velocity
 	this.dx = dx * VELOCITY_MODIFIER;
 	this.dy = dy * VELOCITY_MODIFIER;
+	
+	// location in array
+	this.index = index;
 	
 	// set location values
 	this.setLocation = function(x, y) {
@@ -90,7 +93,15 @@ function Ball(x, y, r, dx, dy) {
 		this.x += this.dx * (renderInterval / 1000);
 		this.y += this.dy * (renderInterval / 1000);
 		
-		this.checkBounce();
+		// bounce off the walls if the checkbox is active
+		if (document.getElementById("toggleWallBounce").checked) {
+			this.checkBounce();
+		}
+		else if (this.x + this.r < 0 || this.x - this.r > canvas.width || this.y + this.r < 0 || this.y - this.r > canvas.height) {
+			// ball is offscreen, remove it from memory
+			this.remove();
+		}
+		
 	};
 	
 	// apply acceleration due to gravity
@@ -105,12 +116,42 @@ function Ball(x, y, r, dx, dy) {
 	
 	// reverse direction at borders of canvas
 	this.checkBounce = function() {
-		if (this.x - this.r < 0 || this.x + this.r > canvas.width) {
-			this.dx = -this.dx;
+		if (this.x - this.r < 0) {
+			this.dx = -this.dx * getElasticity();
+			this.x = this.r;
 		}
-		else if (this.y - this.r < 0 || this.y + this.r > canvas.height) {
-			this.dy = -this.dy;
+		else if(this.x + this.r > canvas.width) {
+			this.dx = -this.dx * getElasticity();
+			this.x = canvas.width - this.r;
 		}
+		
+		if (this.y - this.r < 0) {
+			this.dy = -this.dy * getElasticity();
+			this.y = this.r;
+		}
+		else if( this.y + this.r > canvas.height) {
+			this.dy = -this.dy * getElasticity();
+			this.y = canvas.height - this.r;
+		}
+	};
+	
+	// remove reference from activeBalls array
+	this.remove = function() {
+		// special case for only ball in array
+		if (activeBalls.length == 1) {
+			activeBalls[0] = null;
+		}
+		else {
+			// shift all the other balls down one, over the ball getting removed
+			for (var i = this.index; i < activeBalls.length - 1; i++) {
+				activeBalls[i] = activeBalls[i + 1];
+				activeBalls[i].index = i;
+			}
+			// set the final reference to null
+			activeBalls[activeBalls.length - 1] = null;
+		}
+		// update array length property
+		activeBalls.length--;
 	};
 	
 }
@@ -141,16 +182,34 @@ function toss() {
 	// create a new ball
 	activeBalls[activeBalls.length] = new Ball(BALL_RADIUS, canvas.height - BALL_RADIUS, BALL_RADIUS, 
 		// dx = cos(theta) * velocity, dy = sin(theta) * velocity
-		Math.cos(aimTheta) * shotVelocity, - Math.sin(aimTheta) * shotVelocity);
+		Math.cos(aimTheta) * shotVelocity, - Math.sin(aimTheta) * shotVelocity, activeBalls.length);
 	
 	render();
+	
+}
+
+
+////////////////////////////////////////////////////////
+///////////////// HTML Input Methods ///////////////////
+////////////////////////////////////////////////////////
+
+// read elasticity from form
+function getElasticity() {
+	return document.getElementById("elasticity").value;
 }
 
 // capture keyboard input
 function checkKeypress(event) {
 	
-	// special case to reload page
-	if (event.ctrlKey && event.keyCode == 82) {
+	// don't capture keypress if the control key is down
+	// so that you can execute browser commands like reloading
+	if (event.ctrlKey) {
+		return;
+	}
+	
+	// don't capture numbers, period, backspace, or delete
+	// so that you can enter values in the parameter fields
+	if (event.keyCode >= 48 && event.keyCode <= 57 || event.keyCode == 190 || event.keyCode == 8 || event.keyCode == 46) {
 		return;
 	}
 	

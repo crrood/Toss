@@ -4,7 +4,12 @@
 
 <button onclick="startTime(event)">Go</button>
 <button onclick="stopTime(event)">Stop</button>
+
 <br><br>
+<form>
+	<input type="checkbox" checked="checked" id="toggleWallBounce">Bounce off walls<br>
+	<input type="range" min="0" max="1" value=".6" step=".01" id="elasticity">Ball elasticity<br>
+</form>
 
 <canvas id="canvas" width="640" height="480" style="border:1px solid #000000">canvas not supported</canvas>
 
