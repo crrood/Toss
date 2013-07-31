@@ -8,7 +8,7 @@
 // (still not entirely sure what exactly a context is and why you need it)
 var canvas, ctx;
 
-// starting angle of shot
+// starting angle of shot: 0 = flat, pi / 2 = straight up
 var aimTheta = Math.PI / 4;
 
 // starting velocity of shot, in px / s
@@ -23,20 +23,32 @@ var MAX_POWER = 250;
 // redraw aimLine?
 var redrawAimLine = true;
 
-// gravitational force, in px / s ^ 2 
-var gravity = 170;
-
 // divisor is number of steps from top to bottom
 var aimYSensitivity = (Math.PI / 2) / 40;
 
 // amount to increment power per keypress
 var aimXSensitivity = 6;
 
+// does gravity have an effect
+var gravityOn = true;
+
+// gravitational force, in px / s ^ 2
+var gravity = 170;
+
 // array to store active balls
 var activeBalls = new Array();
 
 // size of balls
 var BALL_RADIUS = 12;
+
+// balls bounce off the walls
+var ballBounce = true;
+
+// balls bounce off each other
+var wallBounce = true;
+
+// how bouncy are the balls
+var elasticity = .6;
 
 // is time advancing?
 var timeActive = false;
@@ -78,10 +90,17 @@ function Ball(x, y, r, dx, dy, index) {
 	};
 	
 	// set velocity values
-	this.setVelocity = function(dx, dy) {
+	this.setComponentVelocity = function(dx, dy) {
 		this.dx = dx;
 		this.dy = dy;
 	};
+	
+	// calculate non-directional speed
+	this.speed = function() {
+		return Math.sqrt(this.dx * this.dx + this.dy * this.dy);
+	};
+	
+	// calculate 
 	
 	// apply velocity to location
 	this.updateLocation = function(redraw) {
@@ -90,15 +109,12 @@ function Ball(x, y, r, dx, dy, index) {
 			drawCircle(this.x, this.y, this.r + 2, "#FFFFFF");
 		}
 		
+		// update x and y, accounting for length time between renders
 		this.x += this.dx * (renderInterval / 1000);
 		this.y += this.dy * (renderInterval / 1000);
 		
-		// bounce off the walls if the checkbox is active
-		if (document.getElementById("toggleWallBounce").checked) {
-			this.checkBounce();
-		}
-		else if (this.x + this.r < 0 || this.x - this.r > canvas.width || this.y + this.r < 0 || this.y - this.r > canvas.height) {
-			// ball is offscreen, remove it from memory
+		// make sure the ball is still onscreen
+		if (this.x + this.r < 0 || this.x - this.r > canvas.width || this.y + this.r < 0 || this.y - this.r > canvas.height) {
 			this.remove();
 		}
 		
@@ -115,24 +131,31 @@ function Ball(x, y, r, dx, dy, index) {
 	};
 	
 	// reverse direction at borders of canvas
-	this.checkBounce = function() {
+	this.checkWallBounce = function() {
 		if (this.x - this.r < 0) {
-			this.dx = -this.dx * getElasticity();
+			this.dx = -this.dx * elasticity;
 			this.x = this.r;
 		}
 		else if(this.x + this.r > canvas.width) {
-			this.dx = -this.dx * getElasticity();
+			this.dx = -this.dx * elasticity;
 			this.x = canvas.width - this.r;
 		}
 		
 		if (this.y - this.r < 0) {
-			this.dy = -this.dy * getElasticity();
+			this.dy = -this.dy * elasticity;
 			this.y = this.r;
 		}
 		else if( this.y + this.r > canvas.height) {
-			this.dy = -this.dy * getElasticity();
+			this.dy = -this.dy * elasticity;
 			this.y = canvas.height - this.r;
 		}
+	};
+	
+	// calculate distance (in px) to another Ball using Pythagorean theorem
+	this.distanceTo = function(otherBall) {
+		var xDiff = Math.abs(this.x - otherBall.x);
+		var yDiff = Math.abs(this.y - otherBall.y);
+		return Math.sqrt(xDiff * xDiff + yDiff * yDiff);
 	};
 	
 	// remove reference from activeBalls array
@@ -169,8 +192,22 @@ function initialize() {
 	canvas = document.getElementById("canvas");
 	ctx = canvas.getContext("2d");
 	
-	// capture input
+	// capture keyboard input
 	document.getElementById("body").addEventListener("keydown", checkKeypress);
+	
+	// set up event listeners for simulation parameters
+	document.getElementById("toggleWallBounce").addEventListener("change", toggleWallBounce);
+	document.getElementById("toggleBallBounce").addEventListener("change", toggleBallBounce);
+	document.getElementById("startTime").addEventListener("click", startTime);
+	document.getElementById("stopTime").addEventListener("click", stopTime);
+	document.getElementById("toggleGravity").addEventListener("click", toggleGravity);
+	document.getElementById("elasticityParam").addEventListener("change", updateElasticity);
+	
+	// initialize parameter values
+	gravityOn = document.getElementById("toggleGravity").checked;
+	wallBounce = document.getElementById("toggleWallBounce").checked;
+	ballBounce = document.getElementById("toggleBallBounce").checked;
+	elasticity = document.getElementById("elasticityParam").value;
 	
 	render();
 	
@@ -193,11 +230,6 @@ function toss() {
 ///////////////// HTML Input Methods ///////////////////
 ////////////////////////////////////////////////////////
 
-// read elasticity from form
-function getElasticity() {
-	return document.getElementById("elasticity").value;
-}
-
 // capture keyboard input
 function checkKeypress(event) {
 	
@@ -207,9 +239,14 @@ function checkKeypress(event) {
 		return;
 	}
 	
-	// don't capture numbers, period, backspace, or delete
-	// so that you can enter values in the parameter fields
-	if (event.keyCode >= 48 && event.keyCode <= 57 || event.keyCode == 190 || event.keyCode == 8 || event.keyCode == 46) {
+	// don't capture input when a parameter input field is focused
+	if (document.activeElement.id.indexOf("Param") != -1) {
+		
+		// prevent return key from reloading page
+		if (event.keyCode == 13) {
+			event.preventDefault();
+		}
+		
 		return;
 	}
 	
@@ -258,6 +295,31 @@ function checkKeypress(event) {
 	
 }
 
+function toggleGravity(event) {
+	gravityOn = !gravityOn;
+	
+	// reset focus to prevent keyboard input from toggling parameter
+	document.getElementById("toggleGravity").blur();
+}
+
+function toggleWallBounce(event) {
+	wallBounce = !wallBounce;
+	
+	// reset focus to prevent keyboard input from toggling parameter
+	document.getElementById("toggleWallBounce").blur();
+}
+
+function toggleBallBounce(event) {
+	ballBounce = !ballBounce;
+	
+	// reset focus to prevent keyboard input from toggling parameter
+	document.getElementById("toggleBallBounce").blur();
+}
+
+function updateElasticity(event) {
+	elasticity = document.getElementById("elasticityParam").value;
+}
+
 
 ////////////////////////////////////////////////////////
 //////////////// Rendering Methods /////////////////////
@@ -275,7 +337,7 @@ function render() {
 		redrawAimLine = false;
 	}
 	
-	// active balls
+	// render balls
 	for (var i in activeBalls) {
 		activeBalls[i].draw();
 	}
@@ -286,7 +348,27 @@ function render() {
 function advanceTime() {
 	
 	for (var i in activeBalls) {
-		activeBalls[i].applyGravity();
+		
+		// account for acceleration due to gravity
+		if (gravityOn) {
+			activeBalls[i].applyGravity();
+		}
+				
+		// check for balls bouncing off the walls
+		if (wallBounce) {
+			activeBalls[i].checkWallBounce();
+		}
+				
+		// check for balls bouncing off each other
+		if (ballBounce) {
+			for (var j in activeBalls) {
+				if (i != j && activeBalls[i].distanceTo(activeBalls[j]) < activeBalls[i].r + activeBalls[j].r) {
+					// TODO figure out math for two dimensional elastic collisions
+				}
+			}
+		}
+		
+		// update ball's x and y values and redraw
 		activeBalls[i].updateLocation(true);
 	}
 	
@@ -302,6 +384,9 @@ function startTime(event) {
 	}
 	timeActive = true;
 	
+	// reset focus to prevent keyboard input from toggling parameter
+	document.getElementById("startTime").blur();
+	
 }
 
 // pause the render timer
@@ -311,6 +396,9 @@ function stopTime(event) {
 		clearInterval(renderTimer);
 	}
 	timeActive = false;
+	
+	// reset focus to prevent keyboard input from toggling parameter
+	document.getElementById("stopTime").blur();
 	
 }
 
@@ -374,7 +462,7 @@ function drawCircle(x, y, r, color) {
 	// re-render the aimLine in case the circle overlapped it
 	redrawAimLine = true;
 	
-}
+} 
 
 // output text to bottom of panel
 // for debugging
