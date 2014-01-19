@@ -1,0 +1,21 @@
+<h1>TESTBED</h1>
+
+<script src="testbed.js"></script>
+
+<div style="position: relative;">
+	<canvas id="canvas" width="640" height="640" style="border:1px solid #000000">canvas not supported</canvas>
+	
+	<span style="left: 670px; top: 0px; position: absolute;">
+		<form>
+			<input type="range" id="dXL" min="-100" max="100" value="25" step="1">dXL</input><br>
+			<input type="range" id="dYL" min="-100" max="100" value="25" step="1">dYL</input><br>
+			<input type="range" id="dXR" min="-100" max="100" value="-25" step="1">dXR</input><br>
+			<input type="range" id="dYR" min="-100" max="100" value="-25" step="1">dYR</input><br>
+			<input type="range" id="thetaC" min="-3.14" max="3.14" value="-2.5" step=".1">thetaC</input><br>
+		</form>
+		<p id="console">console loaded</p>
+	</span>
+</div>
+
+<body onload="initialize()" id="body">
+</body>

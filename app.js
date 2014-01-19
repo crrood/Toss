@@ -291,6 +291,10 @@ function checkKeypress(event) {
 		// s
 		stopTime();
 		break;
+	case 84:
+		// t
+		stopBalls();
+		break;
 	}
 	
 }
@@ -322,6 +326,16 @@ function updateElasticity(event) {
 
 
 ////////////////////////////////////////////////////////
+//////////////// Debugging Methods /////////////////////
+////////////////////////////////////////////////////////
+function stopBalls() {
+	for (var i in activeBalls) {
+		activeBalls[i].setComponentVelocity(0, 0);
+	}	
+}
+
+
+////////////////////////////////////////////////////////
 //////////////// Rendering Methods /////////////////////
 ////////////////////////////////////////////////////////
 
@@ -347,6 +361,9 @@ function render() {
 // move everything as it should
 function advanceTime() {
 	
+	// HACK to keep from counting collisions twice
+	collided = false;
+	
 	for (var i in activeBalls) {
 		
 		// account for acceleration due to gravity
@@ -358,12 +375,157 @@ function advanceTime() {
 		if (wallBounce) {
 			activeBalls[i].checkWallBounce();
 		}
-				
+		
+		
 		// check for balls bouncing off each other
 		if (ballBounce) {
 			for (var j in activeBalls) {
-				if (i != j && activeBalls[i].distanceTo(activeBalls[j]) < activeBalls[i].r + activeBalls[j].r) {
-					// TODO figure out math for two dimensional elastic collisions
+				// HACK HACK HACK
+				if (!collided && i != j && activeBalls[i].distanceTo(activeBalls[j]) < activeBalls[i].r + activeBalls[j].r) {
+					
+					// TODO change the timer architecture to make sure collisions don't get counted twice
+					
+					// HACK HACK HACK
+					collided = true;
+					
+					// find leftmost and rightmost balls to guarantee quadrants
+					var leftmostX = Math.min(activeBalls[i].x, activeBalls[j].x);
+					
+					// pointers to Ball objects
+					var ballL, ballR;
+					if (activeBalls[i].x == leftmostX) {
+						ballL = activeBalls[i];
+						ballR = activeBalls[j];
+					}
+					else {
+						ballL = activeBalls[j];
+						ballR = activeBalls[i];
+					}
+					
+					output("speedL: " + ballL.speed());
+					output("ballL.dx: " + ballL.dx);
+					output("ballL.dy: " + ballL.dy);
+					output("speedR: " + ballR.speed());
+					output("ballR.dx: " + ballR.dx);
+					output("ballR.dy: " + ballR.dy);
+					output("");
+					
+					// angle of incoming velocity vector
+					/*
+					output("isNaN preCollisionTheta: " + isNaN(ballL.dy / ballL.dx) || isNaN(ballR.dy / ballR.dx));
+					var thetaL = isNaN(ballL.dy / ballL.dx) ? 0 : Math.atan(ballL.dy / ballL.dx);
+					var thetaR = isNaN(ballR.dy / ballR.dx) ? 0 : Math.atan(ballR.dy / ballR.dx);
+					*/
+					// negative to adjust for fucked up JS coordinate system
+					var thetaL = Math.atan2(ballL.dx, -ballL.dy);
+					var thetaR = Math.atan2(ballR.dx, -ballR.dy);
+					output("thetaL: " + thetaL);
+					output("thetaR: " + thetaR);
+					
+					// angle of collision
+					//var thetaC = Math.atan((ballL.y - ballR.y) / (ballL.x - ballR.x));
+					// reversed to adjust for fucked up JS coordinate system
+					var thetaC = Math.atan2(ballR.x - ballL.x, ballL.y - ballR.y);
+					output("thetaC: " + thetaC);
+					
+					// velocity in direction of collion
+					var vCR = ballR.speed() * Math.cos(thetaC - thetaR);
+					var vCL = ballL.speed() * Math.cos(thetaC - thetaL);
+					
+					// velocity tangental to collision
+					var vTL = Math.abs(ballL.speed() * Math.sin(thetaC - thetaL));
+					var vTR = Math.abs(ballR.speed() * Math.sin(thetaC - thetaR));
+					
+					output("");
+					output("vCL: " + vCL);
+					output("vTL: " + vTL);
+					output("vCR: " + vCR);
+					output("vTR: " + vTR);
+					
+					// calculate outgoing speed
+					var postCollisionSpeedL = Math.sqrt(vCR * vCR + vTL * vTL);
+					var postCollisionSpeedR = Math.sqrt(vCL * vCL + vTR * vTR);
+					
+					output("postCollisionSpeedL: " + postCollisionSpeedL);
+					output("postCollisionSpeedR: " + postCollisionSpeedR);
+					output("");
+					
+					// outgoing angle
+					/*
+					output("isNaN(postCollisionTheta): " + (isNaN(vCL / vTR) || isNaN(vCR / vTL)));
+					var postCollisionThetaL = isNaN(vCL / vTR) ? thetaC : Math.abs(thetaC) - Math.abs(Math.atan(vCL / vTR));
+					var postCollisionThetaR = isNaN(vCR / vTL) ? thetaC : Math.abs(thetaC) - Math.abs(Math.atan(vCR / vTL));
+					*/
+					var postCollisionThetaL = thetaC - Math.atan2(vTR, vCL);
+					var postCollisionThetaR = thetaC - Math.atan2(vTL, vCR);
+
+					output("postCollisionThetaL: " + postCollisionThetaL);
+					output("postCollisionThetaR: " + postCollisionThetaR);
+					
+					// component vectors of post collision velocity
+					var finalDXL = postCollisionSpeedL * Math.cos(postCollisionThetaL);
+					var finalDYL = postCollisionSpeedL * Math.sin(postCollisionThetaL);
+					
+					var finalDXR = postCollisionSpeedR * Math.cos(postCollisionThetaR);
+					var finalDYR = postCollisionSpeedR * Math.sin(postCollisionThetaR);
+					
+					// if (postCollisionThetaL > 0 && postCollisionThetaL < Math.PI / 2) {
+						// finalDXL = Math.abs(finalDXL);
+						// finalDYL = -Math.abs(finalDYL);
+					// }
+					// else if (postCollisionThetaL < 0 && postCollisionThetaL > - Math.PI / 2) {
+						// finalDXL = Math.abs(finalDXL);
+						// finalDYL = Math.abs(finalDYL);
+					// }
+					// else if (postCollisionThetaL > 0 && postCollisionThetaL > Math.PI / 2) {
+						// finalDXL = -Math.abs(finalDXL);
+						// finalDYL = Math.abs(finalDYL);
+					// }
+					// else if (postCollisionThetaL < 0 && postCollisionThetaL < - Math.PI / 2) {
+						// finalDXL = -Math.abs(finalDXL);
+						// finalDYL = -Math.abs(finalDYL);
+					// }
+					
+					// if (postCollisionThetaR > 0 && postCollisionThetaR < Math.PI / 2) {
+						// finalDXR = Math.abs(finalDXR);
+						// finalDYR = -Math.abs(finalDYR);
+					// }
+					// else if (postCollisionThetaR < 0 && postCollisionThetaR > - Math.PI / 2) {
+						// finalDXR = Math.abs(finalDXR);
+						// finalDYR = Math.abs(finalDYR);
+					// }
+					// else if (postCollisionThetaR > 0 && postCollisionThetaR > Math.PI / 2) {
+						// finalDXR = -Math.abs(finalDXR);
+						// finalDYR = Math.abs(finalDYR);
+					// }
+					// else if (postCollisionThetaR < 0 && postCollisionThetaR < - Math.PI / 2) {
+						// finalDXR = -Math.abs(finalDXR);
+						// finalDYR = -Math.abs(finalDYR);
+					// }
+					
+					output("");
+					
+					output("finalDXL: " + finalDXL);
+					output("finalDYL: " + finalDYL);
+					output("Math.atan(vCL / vTR): " + Math.atan(vCL / vTR));
+					output("");
+					output("finalDXR: " + finalDXR);
+					output("finalDYR: " + finalDYR);
+					output("Math.atan(vCR / vTL): " + Math.atan(vCR / vTL));
+					output("");
+					
+					// update the ball values
+					ballL.setComponentVelocity(finalDXL, finalDYL);
+					ballR.setComponentVelocity(finalDXR, finalDYR);
+					
+					//ballL.updateLocation(false);
+					//ballR.updateLocation(false);
+					
+					output("finalSpeedL: " + ballL.speed());
+					output("finalSpeedR: " + ballR.speed());
+					
+					output("-------------------------------------");
+					
 				}
 			}
 		}
